@@ -50,6 +50,36 @@ export function LiveEditor({
   const [showMobilePalette, setShowMobilePalette] = useState(true);
   const [exportTrackers, setExportTrackers] = useState<Tracker[]>([]);
 
+  // First-visit hints — shown once, dismissed on interaction or timeout
+  const [showDragHint, setShowDragHint] = useState(
+    () => !localStorage.getItem("tono-drag-hint-seen")
+  );
+  const [showCameraHint, setShowCameraHint] = useState(
+    () => !localStorage.getItem("tono-camera-hint-seen")
+  );
+
+  useEffect(() => {
+    if (!showDragHint) return;
+    const t = setTimeout(() => setShowDragHint(false), 4000);
+    return () => clearTimeout(t);
+  }, [showDragHint]);
+
+  useEffect(() => {
+    if (!showCameraHint) return;
+    const t = setTimeout(() => setShowCameraHint(false), 8000);
+    return () => clearTimeout(t);
+  }, [showCameraHint]);
+
+  const dismissDragHint = useCallback(() => {
+    localStorage.setItem("tono-drag-hint-seen", "1");
+    setShowDragHint(false);
+  }, []);
+
+  const dismissCameraHint = useCallback(() => {
+    localStorage.setItem("tono-camera-hint-seen", "1");
+    setShowCameraHint(false);
+  }, []);
+
   const trackerPositions = trackers.map(({ id, x, y }) => ({ id, x, y }));
 
   useEffect(() => {
@@ -81,7 +111,8 @@ export function LiveEditor({
     e.preventDefault();
     e.stopPropagation();
     setDragging(id);
-  }, []);
+    dismissDragHint();
+  }, [dismissDragHint]);
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,8 +133,9 @@ export function LiveEditor({
   const taskbarProps = {
     trackerCount,
     showPalette: showMobilePalette,
+    showCameraHint,
     onPaletteToggle: () => setShowMobilePalette((v) => !v),
-    onCameraClick: () => onSourceSwitch("camera"),
+    onCameraClick: () => { dismissCameraHint(); onSourceSwitch("camera"); },
     onUploadClick: () => fileInputRef.current?.click(),
     onTrackerCountChange,
     onExport: handleOpenExport,
@@ -180,6 +212,43 @@ export function LiveEditor({
                 onPointerDown={handlePinPointerDown}
               />
             ))}
+          </AnimatePresence>
+
+          {/* Drag hint — first-visit only */}
+          <AnimatePresence>
+            {showDragHint && (
+              <motion.div
+                key="drag-hint"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ delay: 0.9, duration: 0.4 }}
+                className="absolute left-1/2 z-30 pointer-events-none"
+                style={{ top: "42%", transform: "translateX(-50%)" }}
+              >
+                <div
+                  style={{
+                    background: "rgba(8,8,16,0.78)",
+                    backdropFilter: "blur(12px)",
+                    WebkitBackdropFilter: "blur(12px)",
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    borderRadius: 99,
+                    padding: "7px 16px",
+                    color: "rgba(255,255,255,0.82)",
+                    fontSize: 11,
+                    fontFamily: "'PT Mono', monospace",
+                    letterSpacing: "0.05em",
+                    whiteSpace: "nowrap",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <span style={{ opacity: 0.55, fontSize: 13 }}>✦</span>
+                  drag pins to the color you want
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
 
           {/* Mobile floating palette card */}
@@ -364,6 +433,7 @@ function MobilePaletteCard({ trackers }: { trackers: Tracker[] }) {
 interface TaskbarProps {
   trackerCount: number;
   showPalette: boolean;
+  showCameraHint: boolean;
   onPaletteToggle: () => void;
   onCameraClick: () => void;
   onUploadClick: () => void;
@@ -372,7 +442,7 @@ interface TaskbarProps {
   onShuffle: () => void;
 }
 
-function MobileControlsRow({ trackerCount, showPalette, onPaletteToggle, onCameraClick, onUploadClick, onTrackerCountChange, onShuffle }: TaskbarProps) {
+function MobileControlsRow({ trackerCount, showPalette, showCameraHint, onPaletteToggle, onCameraClick, onUploadClick, onTrackerCountChange, onShuffle }: TaskbarProps) {
   return (
     <motion.div
       initial={{ y: 16, opacity: 0 }}
@@ -403,9 +473,38 @@ function MobileControlsRow({ trackerCount, showPalette, onPaletteToggle, onCamer
       </TaskbarBtn>
 
       {/* Source */}
-      <TaskbarBtn onClick={onCameraClick} title="Live camera" bg="#25900f" borderColor="#155e07" iconColor="#fff">
-        <Camera size={17} />
-      </TaskbarBtn>
+      <div className="relative">
+        <TaskbarBtn onClick={onCameraClick} title="Live camera" bg="#25900f" borderColor="#155e07" iconColor="#fff">
+          <Camera size={17} />
+        </TaskbarBtn>
+        <AnimatePresence>
+          {showCameraHint && (
+            <motion.div
+              key="cam-hint-mobile"
+              initial={{ opacity: 0, y: 4, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 4, scale: 0.9 }}
+              transition={{ delay: 0.6, type: "spring", stiffness: 380, damping: 26 }}
+              className="absolute pointer-events-none"
+              style={{ bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap" }}
+            >
+              <div style={{
+                background: "rgba(37,144,15,0.92)",
+                backdropFilter: "blur(10px)",
+                borderRadius: 99,
+                padding: "5px 10px",
+                fontSize: 10,
+                fontFamily: "'PT Mono', monospace",
+                color: "#fff",
+                letterSpacing: "0.04em",
+                boxShadow: "0 2px 10px rgba(37,144,15,0.5)",
+              }}>
+                allow camera ↓
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
       <TaskbarBtn onClick={onUploadClick} title="Upload photo" bg="#8012da" borderColor="#4c137a" iconColor="#fff">
         <ImageIcon size={17} />
       </TaskbarBtn>
@@ -430,7 +529,7 @@ function MobileControlsRow({ trackerCount, showPalette, onPaletteToggle, onCamer
 }
 
 // ─── Desktop floating taskbar ─────────────────────────────────────────────────
-function DesktopTaskbar({ trackerCount, onCameraClick, onUploadClick, onTrackerCountChange, onExport, onShuffle }: TaskbarProps) {
+function DesktopTaskbar({ trackerCount, showCameraHint, onCameraClick, onUploadClick, onTrackerCountChange, onExport, onShuffle }: TaskbarProps) {
   return (
     <motion.div
       initial={{ y: 20, opacity: 0 }}
@@ -448,9 +547,38 @@ function DesktopTaskbar({ trackerCount, onCameraClick, onUploadClick, onTrackerC
       }}
     >
       <div className="flex items-center gap-1.5">
-        <TaskbarBtn onClick={onCameraClick} title="Live camera" bg="#25900f" borderColor="#155e07" iconColor="#fff">
-          <Camera size={18} />
-        </TaskbarBtn>
+        <div className="relative">
+          <TaskbarBtn onClick={onCameraClick} title="Live camera" bg="#25900f" borderColor="#155e07" iconColor="#fff">
+            <Camera size={18} />
+          </TaskbarBtn>
+          <AnimatePresence>
+            {showCameraHint && (
+              <motion.div
+                key="cam-hint-desktop"
+                initial={{ opacity: 0, y: 4, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.9 }}
+                transition={{ delay: 0.8, type: "spring", stiffness: 380, damping: 26 }}
+                className="absolute pointer-events-none"
+                style={{ bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap" }}
+              >
+                <div style={{
+                  background: "rgba(37,144,15,0.92)",
+                  backdropFilter: "blur(10px)",
+                  borderRadius: 99,
+                  padding: "5px 12px",
+                  fontSize: 10,
+                  fontFamily: "'PT Mono', monospace",
+                  color: "#fff",
+                  letterSpacing: "0.04em",
+                  boxShadow: "0 2px 10px rgba(37,144,15,0.5)",
+                }}>
+                  try live camera ↓
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         <TaskbarBtn onClick={onUploadClick} title="Upload photo" bg="#8012da" borderColor="#4c137a" iconColor="#fff">
           <ImageIcon size={18} />
         </TaskbarBtn>
