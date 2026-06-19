@@ -304,6 +304,7 @@ export function LiveEditor({
             border: "1.5px solid #4c137a",
             fontSize: 15,
             boxShadow: "0 2px 20px rgba(128,18,218,0.45)",
+            cursor: "pointer",
           }}
         >
           <Download size={17} />
@@ -601,7 +602,7 @@ function DesktopTaskbar({ trackerCount, showCameraHint, onCameraClick, onUploadC
         whileTap={{ scale: 0.94 }}
         onClick={onExport}
         className="flex items-center gap-2 px-4 py-2 rounded-full font-bold text-white text-sm"
-        style={{ background: "#8012da", border: "1.5px solid #4c137a", boxShadow: "0 2px 12px rgba(128,18,218,0.35)" }}
+        style={{ background: "#8012da", border: "1.5px solid #4c137a", boxShadow: "0 2px 12px rgba(128,18,218,0.35)", cursor: "pointer" }}
       >
         <Download size={15} />
         Export Palette
@@ -642,6 +643,7 @@ function TaskbarBtn({
         background: bg,
         color: iconColor,
         border: `1.5px solid ${borderColor}`,
+        cursor: disabled ? "not-allowed" : "pointer",
       }}
     >
       {children}
