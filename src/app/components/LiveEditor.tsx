@@ -46,6 +46,7 @@ export function LiveEditor({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const draggingRef = useRef<string | null>(null);
+  const dragOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
   const [showExport, setShowExport] = useState(false);
   const [showMobilePalette, setShowMobilePalette] = useState(true);
   const [exportTrackers, setExportTrackers] = useState<Tracker[]>([]);
@@ -89,8 +90,10 @@ export function LiveEditor({
     const handleMove = (e: PointerEvent) => {
       if (!draggingRef.current || !canvasAreaRef.current) return;
       const rect = canvasAreaRef.current.getBoundingClientRect();
-      const x = Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width) * 100));
-      const y = Math.max(2, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));
+      const rawX = ((e.clientX - rect.left) / rect.width) * 100;
+      const rawY = ((e.clientY - rect.top) / rect.height) * 100;
+      const x = Math.max(2, Math.min(98, rawX + dragOffsetRef.current.dx));
+      const y = Math.max(2, Math.min(95, rawY + dragOffsetRef.current.dy));
       onTrackerDrag(draggingRef.current, x, y);
     };
 
@@ -110,9 +113,18 @@ export function LiveEditor({
   const handlePinPointerDown = useCallback((e: React.PointerEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
+    if (canvasAreaRef.current) {
+      const rect = canvasAreaRef.current.getBoundingClientRect();
+      const cursorX = ((e.clientX - rect.left) / rect.width) * 100;
+      const cursorY = ((e.clientY - rect.top) / rect.height) * 100;
+      const tracker = trackers.find((t) => t.id === id);
+      if (tracker) {
+        dragOffsetRef.current = { dx: tracker.x - cursorX, dy: tracker.y - cursorY };
+      }
+    }
     setDragging(id);
     dismissDragHint();
-  }, [dismissDragHint]);
+  }, [trackers, dismissDragHint]);
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
